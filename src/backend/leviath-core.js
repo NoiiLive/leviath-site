@@ -34,16 +34,15 @@ export const GAMES = [
   { placeId: 127685019935711, role: "Developed & published" },
 ];
 
-// Optional: pitches can also post to a Discord channel. In Discord: channel settings → Integrations →
-// Webhooks → New Webhook → Copy Webhook URL, and paste it between the quotes. Pitches are always saved
-// to the LeviathPitches collection in your CMS either way.
-const DISCORD_WEBHOOK_URL = "";
+// Pitches are saved to the LeviathPitches collection in your CMS, and also posted to Discord through the
+// webhook saved in CMS → LeviathSettings → the "discordWebhook" item. It's kept there rather than in this
+// file so it never ends up in your code repository. To change it, edit that item's Value in the CMS.
 
 // The first time this site records its stats, it copies the history your earlier Cloudflare version of the
 // site recorded, so the growth charts don't start from zero. Set to "" to skip.
 const IMPORT_HISTORY_FROM = "https://leviath.noiitheboii.workers.dev/api/history";
 
-const COLLECTIONS = { snapshots: "RobloxSnapshots", daily: "RobloxDaily", pitches: "LeviathPitches" };
+const COLLECTIONS = { snapshots: "RobloxSnapshots", daily: "RobloxDaily", pitches: "LeviathPitches", settings: "LeviathSettings" };
 const KEEP_SNAPSHOT_DAYS = 45;
 
 /* ───────────────────────── Roblox data ───────────────────────── */
@@ -336,6 +335,17 @@ export async function readHistory() {
 /* ───────────────────────── Pitch form ───────────────────────── */
 
 const PITCHES_PER_HOUR = 20;
+const DISCORD_WEBHOOK = /^https:\/\/(?:canary\.|ptb\.)?discord(?:app)?\.com\/api\/webhooks\/\d+\/[\w-]+$/;
+
+async function discordWebhook() {
+  try {
+    const item = await wixData.get(COLLECTIONS.settings, "discordWebhook", OPTS);
+    const url = item && typeof item.value === "string" ? item.value.trim() : "";
+    return DISCORD_WEBHOOK.test(url) ? url : null;
+  } catch (err) {
+    return null;
+  }
+}
 
 export async function savePitch(input) {
   const body = input && typeof input === "object" ? input : {};
@@ -358,9 +368,10 @@ export async function savePitch(input) {
   }
   await wixData.insert(COLLECTIONS.pitches, { game, discord, message, submitted: new Date() }, OPTS);
 
-  if (/^https:\/\/(?:canary\.|ptb\.)?discord(?:app)?\.com\/api\/webhooks\//.test(DISCORD_WEBHOOK_URL)) {
+  const hook = await discordWebhook();
+  if (hook) {
     try {
-      await fetch(DISCORD_WEBHOOK_URL, {
+      await fetch(hook, {
         method: "post",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
@@ -368,7 +379,7 @@ export async function savePitch(input) {
           allowed_mentions: { parse: [] },
           embeds: [
             {
-              title: "New game pitch",
+              title: "New acquisition request",
               color: 0xd4b062,
               fields: [
                 { name: "Game", value: game },
