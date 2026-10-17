@@ -14,7 +14,7 @@ export const SITE_INFO = {
   ownerName: "Noii",
   ownerUsername: "noiixn",
   ownerProfileUrl: "https://www.roblox.com/users/342662401/profile",
-  email: "noiibusinessemail@gmail.com",
+  email: "acquisition@leviath.co",
   discordUsername: "noiilive",
   discordInvite: "https://discord.gg/nK8Eej4nXq",
   showOpenSlot: true, // the "Your game here" card at the end of the Games page
