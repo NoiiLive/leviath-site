@@ -1,7 +1,10 @@
-// Paste this into the code panel of every page: Home, Games, Stats, Services and Contact.
-// It draws that page into the embed box named "leviathPage" and keeps its numbers live.
-import { startLeviath } from "public/leviath";
+// API Reference: https://www.wix.com/velo/reference/api-overview/introduction
+// “Hello, World!” Example: https://learn-code.wix.com/en/article/hello-world
 
 $w.onReady(function () {
-  startLeviath($w);
+    // Write your JavaScript here
+
+    // To select an element by ID use: $w('#elementID')
+
+    // Click 'Preview' to run your code
 });

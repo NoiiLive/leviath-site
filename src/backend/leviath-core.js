@@ -1,11 +1,28 @@
-// Leviath backend: your games, live Roblox numbers, the growth history and the pitch form.
-// Backend code runs on Wix's servers only; visitors never see this file.
+// Leviath backend: your games, contact details, live Roblox numbers, the growth history and the pitch form.
+// Everything you'd want to change is in Settings below. Backend code runs on Wix's servers; visitors never see this file.
 import { fetch } from "wix-fetch";
 import wixData from "wix-data";
 
 /* ───────────────────────── Settings ───────────────────────── */
 
 export const SITE = { name: "Leviath", groupId: 11280027 };
+
+// Contact details and links shown on the site.
+export const SITE_INFO = {
+  name: "Leviath",
+  groupUrl: "https://www.roblox.com/communities/11280027/Leviath",
+  ownerName: "Noii",
+  ownerUsername: "noiixn",
+  ownerProfileUrl: "https://www.roblox.com/users/342662401/profile",
+  email: "noiibusinessemail@gmail.com",
+  discordUsername: "noiilive",
+  discordInvite: "https://discord.gg/nK8Eej4nXq",
+  showOpenSlot: true, // the "Your game here" card at the end of the Games page
+  refreshSeconds: 30, // how often live numbers refresh on the page
+  // Numbers only you can see in Roblox's Creator Dashboard. Add any and they show as highlight tiles on the
+  // Home and Stats pages, e.g. { value: "2,000+", label: "Peak players at once", note: "JoJo's Bizarre Incremental, April 2026" }
+  highlights: [],
+};
 
 // Games on the site, in display order. Add a line to add a game, then publish.
 //   placeId: the number in the game's link (roblox.com/games/<placeId>/...)
