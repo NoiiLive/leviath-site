@@ -1,21 +1,57 @@
 // The Leviath site's web addresses, all on your own domain:
-//   /_functions/site     the script that draws the site (loaded by the site-wide code in Settings → Custom Code)
-//   /_functions/hub      live numbers from Roblox
-//   /_functions/history  the recorded history for the growth charts
-//   /_functions/pitch    the Contact page's pitch form
-import { ok, badRequest, serverError } from "wix-http-functions";
+//   /_functions/site       the script that draws the site (loaded by the site-wide code in Settings → Custom Code)
+//   /_functions/hub        live numbers from Roblox
+//   /_functions/history    the recorded history for the growth charts
+//   /_functions/pitch      the Contact page's pitch form
+//   /_functions/admin      your admin page, only on linked devices (see leviath-admin.js)
+import { ok, badRequest, serverError, notFound } from "wix-http-functions";
 import { buildHub, readHistory, savePitch, SITE_INFO } from "backend/leviath-core";
+import { isAdmin, claimDevice, adminData, newLinkCode } from "backend/leviath-admin";
 import { LEVIATH_SITE_JS } from "backend/leviath-site";
+import { ADMIN_PAGE } from "backend/leviath-admin-page";
 
 const HUB_SECONDS = 30;
 const HISTORY_SECONDS = 120;
 const JSON_HEADERS = { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" };
+const ADMIN_HEADERS = {
+  "Cache-Control": "private, no-store",
+  "X-Robots-Tag": "noindex, nofollow",
+  "Referrer-Policy": "no-referrer",
+  "X-Frame-Options": "DENY",
+  "X-Content-Type-Options": "nosniff",
+};
+const ADMIN_CSP = [
+  "default-src 'none'",
+  "script-src 'unsafe-inline'",
+  "style-src 'unsafe-inline' https://fonts.googleapis.com",
+  "font-src https://fonts.gstatic.com",
+  "img-src data: https://*.rbxcdn.com",
+  "connect-src 'self'",
+  "base-uri 'none'",
+  "form-action 'none'",
+  "frame-ancestors 'none'",
+].join("; ");
 
 let hubMemo = null;
 let historyMemo = null;
 
 function json(make, body) {
   return make({ headers: JSON_HEADERS, body: JSON.stringify(body) });
+}
+
+// Live numbers, fetched from Roblox at most every 30 seconds. If Roblox doesn't answer, the last numbers are
+// reused and marked stale.
+async function hubData() {
+  if (hubMemo && Date.now() - hubMemo.at < HUB_SECONDS * 1000) return hubMemo.data;
+  try {
+    const data = await buildHub();
+    hubMemo = { at: Date.now(), data };
+    return data;
+  } catch (err) {
+    console.error("Leviath hub failed", err);
+    if (hubMemo) return { ...hubMemo.data, stale: true };
+    throw err;
+  }
 }
 
 export function get_site(request) {
@@ -27,14 +63,9 @@ export function get_site(request) {
 }
 
 export async function get_hub(request) {
-  if (hubMemo && Date.now() - hubMemo.at < HUB_SECONDS * 1000) return json(ok, hubMemo.data);
   try {
-    const data = await buildHub();
-    hubMemo = { at: Date.now(), data };
-    return json(ok, data);
+    return json(ok, await hubData());
   } catch (err) {
-    console.error("Leviath hub failed", err);
-    if (hubMemo) return json(ok, { ...hubMemo.data, stale: true });
     return json(serverError, { error: "Roblox didn't respond. Try again shortly." });
   }
 }
@@ -64,5 +95,71 @@ export async function post_pitch(request) {
   } catch (err) {
     console.error("Leviath pitch failed", err);
     return json(serverError, { ok: false, error: "That didn't go through. Message us on Discord instead." });
+  }
+}
+
+/* ───────────────────────── Admin ───────────────────────── */
+
+function hidden() {
+  return notFound({ headers: { ...ADMIN_HEADERS, "Content-Type": "text/plain; charset=utf-8" }, body: "Not found" });
+}
+
+function adminJson(body) {
+  return ok({ headers: { ...ADMIN_HEADERS, "Content-Type": "application/json; charset=utf-8" }, body: JSON.stringify(body) });
+}
+
+// The admin page's own requests carry this header. Other sites can't add it to a request without the
+// browser asking this site first, and this site never agrees, so they can't make your browser act here.
+function fromAdminPage(request) {
+  const headers = (request && request.headers) || {};
+  return Object.keys(headers).some((k) => k.toLowerCase() === "x-leviath-admin" && String(headers[k]) === "1");
+}
+
+async function adminAllowed(request) {
+  try {
+    return await isAdmin(request);
+  } catch (err) {
+    console.error("Leviath admin check failed", err);
+    return false;
+  }
+}
+
+export async function get_admin(request) {
+  let allowed = await adminAllowed(request);
+  const code = request && request.query ? request.query.claim : null;
+  if (!allowed && code) {
+    try {
+      allowed = await claimDevice(request, code);
+    } catch (err) {
+      console.error("Leviath admin link failed", err);
+    }
+  }
+  if (!allowed) return hidden();
+  return ok({ headers: { ...ADMIN_HEADERS, "Content-Type": "text/html; charset=utf-8", "Content-Security-Policy": ADMIN_CSP }, body: ADMIN_PAGE });
+}
+
+export async function get_adminData(request) {
+  if (!fromAdminPage(request) || !(await adminAllowed(request))) return hidden();
+  let hub = null;
+  try {
+    hub = await hubData();
+  } catch (err) {
+    hub = null;
+  }
+  try {
+    return adminJson(await adminData(request, hub));
+  } catch (err) {
+    console.error("Leviath admin data failed", err);
+    return serverError({ headers: { ...ADMIN_HEADERS, "Content-Type": "application/json; charset=utf-8" }, body: JSON.stringify({ error: "Couldn't load the admin data." }) });
+  }
+}
+
+export async function post_adminLink(request) {
+  if (!fromAdminPage(request) || !(await adminAllowed(request))) return hidden();
+  try {
+    return adminJson(await newLinkCode());
+  } catch (err) {
+    console.error("Leviath admin link code failed", err);
+    return serverError({ headers: { ...ADMIN_HEADERS, "Content-Type": "application/json; charset=utf-8" }, body: JSON.stringify({ error: "Couldn't make a link." }) });
   }
 }

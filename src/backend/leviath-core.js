@@ -42,7 +42,7 @@ export const GAMES = [
 // site recorded, so the growth charts don't start from zero. Set to "" to skip.
 const IMPORT_HISTORY_FROM = "https://leviath.noiitheboii.workers.dev/api/history";
 
-const COLLECTIONS = { snapshots: "RobloxSnapshots", daily: "RobloxDaily", pitches: "LeviathPitches", settings: "LeviathSettings" };
+export const COLLECTIONS = { snapshots: "RobloxSnapshots", daily: "RobloxDaily", pitches: "LeviathPitches", settings: "LeviathSettings" };
 const KEEP_SNAPSHOT_DAYS = 45;
 
 /* ───────────────────────── Roblox data ───────────────────────── */
@@ -337,7 +337,7 @@ export async function readHistory() {
 const PITCHES_PER_HOUR = 20;
 const DISCORD_WEBHOOK = /^https:\/\/(?:canary\.|ptb\.)?discord(?:app)?\.com\/api\/webhooks\/\d+\/[\w-]+$/;
 
-async function discordWebhook() {
+export async function discordWebhook() {
   try {
     const item = await wixData.get(COLLECTIONS.settings, "discordWebhook", OPTS);
     const url = item && typeof item.value === "string" ? item.value.trim() : "";
@@ -370,8 +370,9 @@ export async function savePitch(input) {
 
   const hook = await discordWebhook();
   if (hook) {
+    let result = "sent";
     try {
-      await fetch(hook, {
+      const res = await fetch(hook, {
         method: "post",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
@@ -391,8 +392,16 @@ export async function savePitch(input) {
           ],
         }),
       });
+      if (!res.ok) result = `failed: Discord answered HTTP ${res.status}`;
     } catch (err) {
       console.error("Leviath pitch: Discord post failed", err);
+      result = "failed: couldn't reach Discord";
+    }
+    // The admin page shows how the last Discord post went.
+    try {
+      await wixData.save(COLLECTIONS.settings, { _id: "discordLastPost", value: result, note: new Date().toISOString() }, OPTS);
+    } catch (err) {
+      console.error("Leviath pitch: couldn't note the Discord result", err);
     }
   }
   return { ok: true };
