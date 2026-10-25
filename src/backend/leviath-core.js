@@ -43,7 +43,7 @@ export const GAMES = [
 const IMPORT_HISTORY_FROM = "https://leviath.noiitheboii.workers.dev/api/history";
 
 export const COLLECTIONS = { snapshots: "RobloxSnapshots", daily: "RobloxDaily", pitches: "LeviathPitches", settings: "LeviathSettings" };
-const KEEP_SNAPSHOT_DAYS = 45;
+const KEEP_SNAPSHOT_DAYS = 14; // the charts use the last 7 days; daily summaries are kept for good
 
 /* ───────────────────────── Roblox data ───────────────────────── */
 
@@ -57,7 +57,7 @@ const safeImage = (url) =>
   typeof url === "string" && /^https:\/\/[a-z0-9-]+\.rbxcdn\.com\//i.test(url) ? url : null;
 const isoOrNull = (v) => (typeof v === "string" && !Number.isNaN(Date.parse(v)) ? new Date(v).toISOString() : null);
 
-async function robloxJson(sub, path) {
+export async function robloxJson(sub, path) {
   let lastError = new Error("No response from Roblox");
   // roproxy.com mirrors Roblox's public APIs and is only tried if Roblox itself fails.
   for (const base of [`https://${sub}.roblox.com`, `https://${sub}.roproxy.com`]) {

@@ -5,11 +5,13 @@
 //   /_functions/pitch      the Contact page's pitch form
 //   /_functions/admin      links a device with a one-time code, then opens leviath.co/#/admin (see leviath-admin.js)
 //   /_functions/adminApp   the admin page itself, sent only to linked devices
+//   /_functions/adminScout and friends: the admin page's Scout tab (see leviath-scout.js)
 import { ok, badRequest, serverError, notFound, response } from "wix-http-functions";
 import { buildHub, readHistory, savePitch, SITE_INFO } from "backend/leviath-core";
 import { isAdmin, claimDevice, adminData, newLinkCode } from "backend/leviath-admin";
 import { LEVIATH_SITE_JS } from "backend/leviath-site";
 import { ADMIN_APP_JS } from "backend/leviath-admin-app";
+import { scoutData, runScout, markGame, queueGame, gameLinks } from "backend/leviath-scout";
 
 const HUB_SECONDS = 30;
 const HISTORY_SECONDS = 120;
@@ -161,5 +163,78 @@ export async function post_adminLink(request) {
   } catch (err) {
     console.error("Leviath admin link code failed", err);
     return serverError({ headers: { ...ADMIN_HEADERS, "Content-Type": "application/json; charset=utf-8" }, body: JSON.stringify({ error: "Couldn't make a link." }) });
+  }
+}
+
+/* ───────────────────────── Admin: Scout tab ───────────────────────── */
+
+function adminError(message) {
+  return serverError({ headers: { ...ADMIN_HEADERS, "Content-Type": "application/json; charset=utf-8" }, body: JSON.stringify({ ok: false, error: message }) });
+}
+
+async function adminBody(request) {
+  try {
+    const body = await request.body.json();
+    return body && typeof body === "object" ? body : {};
+  } catch (err) {
+    return {};
+  }
+}
+
+export async function get_adminScout(request) {
+  if (!fromAdminPage(request) || !(await adminAllowed(request))) return hidden();
+  try {
+    return adminJson(await scoutData());
+  } catch (err) {
+    console.error("Leviath scout data failed", err);
+    return adminError("Couldn't load the scout.");
+  }
+}
+
+export async function post_adminScoutMark(request) {
+  if (!fromAdminPage(request) || !(await adminAllowed(request))) return hidden();
+  try {
+    return adminJson(await markGame(await adminBody(request)));
+  } catch (err) {
+    console.error("Leviath scout mark failed", err);
+    return adminError("Couldn't save that. Try again.");
+  }
+}
+
+export async function post_adminScoutAdd(request) {
+  if (!fromAdminPage(request) || !(await adminAllowed(request))) return hidden();
+  try {
+    const queued = await queueGame((await adminBody(request)).link);
+    if (!queued.ok) return adminJson(queued);
+    let ran = false;
+    try {
+      ran = (await runScout({ budgetMs: 6000, searches: 0, refresh: false })).ok;
+    } catch (err) {
+      ran = false;
+    }
+    return adminJson({ ...queued, ran });
+  } catch (err) {
+    console.error("Leviath scout add failed", err);
+    return adminError("Couldn't add that game. Try again.");
+  }
+}
+
+export async function post_adminScoutRun(request) {
+  if (!fromAdminPage(request) || !(await adminAllowed(request))) return hidden();
+  try {
+    const result = await runScout({ budgetMs: 7000, searches: 4, refresh: false });
+    return adminJson(result.ok ? { ok: true, report: result.report } : { ok: false, error: "A scan is already running. Try again in a few minutes." });
+  } catch (err) {
+    console.error("Leviath scout scan failed", err);
+    return adminError("The scan didn't finish. The hourly scan will carry on.");
+  }
+}
+
+export async function get_adminScoutLinks(request) {
+  if (!fromAdminPage(request) || !(await adminAllowed(request))) return hidden();
+  try {
+    return adminJson(await gameLinks(request.query && request.query.id));
+  } catch (err) {
+    return adminJson({ ok: false, links: [], error: "Roblox didn't share this game's links." });
   }
 }
