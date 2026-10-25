@@ -1,7 +1,7 @@
-// Leviath admin page: leviath.co/_functions/admin
+// Leviath admin page: leviath.co/#/admin
 //
-// It only opens on devices you've linked, recognised by their internet address. Everyone else gets a plain
-// "Not found". Linked addresses are kept in CMS → LeviathSettings → the "adminDevices" item (comma-separated),
+// It only opens on devices you've linked, recognised by their internet address. Anyone else who goes there just
+// sees the home page. Linked addresses are kept in CMS → LeviathSettings → the "adminDevices" item (comma-separated),
 // never in this file, so they stay out of the code repository.
 //
 // To link a device:
@@ -10,6 +10,7 @@
 //   • If you're locked out (say your home internet address changed): in the CMS, open LeviathSettings and set
 //     the Value of the "adminClaim" item (add it if it's missing) to a code of at least 12 characters. Then open
 //     leviath.co/_functions/admin?claim=<that code> once on your device. A code only ever links one device.
+// leviath.co/_functions/admin also takes a linked device straight to the admin page.
 // To unlink a device, delete its address from "adminDevices".
 import wixData from "wix-data";
 import { randomBytes } from "crypto";

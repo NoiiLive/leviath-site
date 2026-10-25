@@ -3,12 +3,13 @@
 //   /_functions/hub        live numbers from Roblox
 //   /_functions/history    the recorded history for the growth charts
 //   /_functions/pitch      the Contact page's pitch form
-//   /_functions/admin      your admin page, only on linked devices (see leviath-admin.js)
-import { ok, badRequest, serverError, notFound } from "wix-http-functions";
+//   /_functions/admin      links a device with a one-time code, then opens leviath.co/#/admin (see leviath-admin.js)
+//   /_functions/adminApp   the admin page itself, sent only to linked devices
+import { ok, badRequest, serverError, notFound, response } from "wix-http-functions";
 import { buildHub, readHistory, savePitch, SITE_INFO } from "backend/leviath-core";
 import { isAdmin, claimDevice, adminData, newLinkCode } from "backend/leviath-admin";
 import { LEVIATH_SITE_JS } from "backend/leviath-site";
-import { ADMIN_PAGE } from "backend/leviath-admin-page";
+import { ADMIN_APP_JS } from "backend/leviath-admin-app";
 
 const HUB_SECONDS = 30;
 const HISTORY_SECONDS = 120;
@@ -20,17 +21,6 @@ const ADMIN_HEADERS = {
   "X-Frame-Options": "DENY",
   "X-Content-Type-Options": "nosniff",
 };
-const ADMIN_CSP = [
-  "default-src 'none'",
-  "script-src 'unsafe-inline'",
-  "style-src 'unsafe-inline' https://fonts.googleapis.com",
-  "font-src https://fonts.gstatic.com",
-  "img-src data: https://*.rbxcdn.com",
-  "connect-src 'self'",
-  "base-uri 'none'",
-  "form-action 'none'",
-  "frame-ancestors 'none'",
-].join("; ");
 
 let hubMemo = null;
 let historyMemo = null;
@@ -135,7 +125,17 @@ export async function get_admin(request) {
     }
   }
   if (!allowed) return hidden();
-  return ok({ headers: { ...ADMIN_HEADERS, "Content-Type": "text/html; charset=utf-8", "Content-Security-Policy": ADMIN_CSP }, body: ADMIN_PAGE });
+  return response({
+    status: 302,
+    headers: { ...ADMIN_HEADERS, Location: "/#/admin", "Content-Type": "text/html; charset=utf-8" },
+    body: '<!doctype html><meta http-equiv="refresh" content="0;url=/#/admin"><a href="/#/admin">Open the admin page</a>',
+  });
+}
+
+// The admin page is drawn on the site's own page at leviath.co/#/admin, by this script.
+export async function get_adminApp(request) {
+  if (!(await adminAllowed(request))) return hidden();
+  return ok({ headers: { ...ADMIN_HEADERS, "Content-Type": "application/javascript; charset=utf-8" }, body: ADMIN_APP_JS });
 }
 
 export async function get_adminData(request) {
