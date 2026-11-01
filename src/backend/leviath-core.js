@@ -32,6 +32,7 @@ export const SITE_INFO = {
 export const GAMES = [
   { placeId: 106022825094913, role: "Developed & published" },
   { placeId: 127685019935711, role: "Developed & published" },
+  { placeId: 92536179638761, role: "Partner game" },
 ];
 
 // Pitches are saved to the LeviathPitches collection in your CMS, and also posted to Discord through the
@@ -98,7 +99,9 @@ export function splitTitle(raw) {
   let m;
   while ((m = name.match(lead))) {
     const inner = m[1].trim();
-    if (!tag && /[A-Za-z0-9]/.test(inner)) tag = inner;
+    // "[🎃RELEASE]" → "RELEASE": emoji around the words are dropped from the chip
+    const words = inner.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}!?]+$/gu, "").trim();
+    if (!tag && /[A-Za-z0-9]/.test(words)) tag = words;
     name = name.slice(m[0].length);
   }
   return { name: name.trim() || original, tag };
