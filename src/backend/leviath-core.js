@@ -33,6 +33,7 @@ export const GAMES = [
   { placeId: 106022825094913, role: "Developed & published" },
   { placeId: 127685019935711, role: "Developed & published" },
   { placeId: 92536179638761, role: "Partner game" },
+  { placeId: 88373523333820, role: "Partner game" },
 ];
 
 // Pitches are saved to the LeviathPitches collection in your CMS, and also posted to Discord through the
